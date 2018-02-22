@@ -21,15 +21,19 @@ def from_onnx(onnx_model):
     graph = union(inputs, constants, net)
     return reindex(graph, {k: i for (i, k) in enumerate(graph.keys())})
   
-def to_onnx(graph, name='', initializer=None):
+def to_onnx(graph, name='graph', initializer=None):
   from_np = lambda a: numpy_helper.from_array(a) if isinstance(a, np.ndarray) else a
+  onnx_type = lambda t: onnx.TensorProto.DESCRIPTOR.enum_types_by_name['DataType'].values_by_name[t].number
   nodes = [onnx.helper.make_node(attr['type'], [str(i) for i in inputs], [str(n)],
                                  label=attr['label'],
                                  **{k: from_np(v) for (k,v) in attr['params'].items()})
            for (n, (attr, inputs)) in graph.items()
            if attr['type'] != 'Input']
-  inputs = [ParseDict(a['params'], onnx.ValueInfoProto())
-            for (a,_) in graph.values() if a['type'] == 'Input']
+  inputs = [onnx.helper.make_tensor_value_info(name=str(n),
+                                               elem_type=onnx_type(a['params']['type']),
+                                               shape=a['params']['shape'],
+                                               doc_string=a['params'].get('doc_string') or "")
+            for (n,(a,_)) in graph.items() if a['type'] == 'Input']
   outputs = []
   onnx_graph = onnx.helper.make_graph(nodes, name, inputs, outputs, initializer=initializer)
   return onnx.helper.make_model(onnx_graph)

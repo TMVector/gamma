@@ -114,6 +114,22 @@ def relabel(graph, label_func):
     return {n: (dict(attr, label=label_func(attr['label'])), inputs)
             for n, (attr, inputs) in graph.items()}
 
+def relabel_unique(graph):
+    labels = set()
+    def f(label):
+        if label in labels:
+            i = 1
+            while True:
+                label2 = f'{label}_{i}'
+                if label2 not in labels:
+                    labels.add(label2)
+                    return label2
+                i += 1
+        else:
+            labels.add(label)
+            return label
+    return relabel(graph, f)
+
   
 
 #####################
